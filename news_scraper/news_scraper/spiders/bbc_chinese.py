@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import scrapy
-import random
+import os
 
 HTTPS_PREFIX = "https://"
 HTTP_PREFIX = "http://"
@@ -16,20 +16,20 @@ class QuotesSpider(scrapy.Spider):
             "https://www.bbc.com/zhongwen/simp/world-67325336"
         ]
         for url in urls:
-            self.assert_url_prefix(url)
             yield scrapy.Request(url=url, callback=self.parse)
 
     def parse(self, response):
-        self.assert_url_prefix(response.url)
-
         filename = QuotesSpider.get_storage_path(response.url)
+        QuotesSpider.mkdir_recur(filename)
+
         Path(filename).write_bytes(response.body)
 
         self.log(f"Saved file {filename}")
 
     @staticmethod
-    def assert_url_prefix(url):
-        assert url.lower().startswith(QuotesSpider.path_prefix.lower())
+    def mkdir_recur(file_path):
+        dir_path = os.path.dirname(file_path)
+        os.makedirs(dir_path, exist_ok=True)
 
     @staticmethod
     def get_storage_path(url):

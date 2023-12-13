@@ -12,9 +12,18 @@ class Gender(Enum):
     def __str__(self):
         return f'{self.name}'.lower()
 
+
 class UrlProtocol(Enum):
     HTTPS = 1
     FILE = 2
+
+
+class OutputContent(Enum):
+    NAME_MEANING = 1
+    SIMILAR_NAMES = 2
+
+
+output_content = OutputContent.NAME_MEANING
 
 
 class QuotesSpider(scrapy.Spider):
@@ -83,14 +92,28 @@ class QuotesSpider(scrapy.Spider):
             return
 
         # parse text
-        description_text_list = response.xpath("//div[@class = 't-copy']//text()").getall()
-        if len(description_text_list) > 0:
-            yield {
-                name: {
-                    'gender': str(gender),
-                    'description': description_text_list
+        if output_content == OutputContent.NAME_MEANING:
+            description_text_list = response.xpath("//div[@class = 't-copy']//text()").getall()
+            if len(description_text_list) > 0:
+                yield {
+                    name: {
+                        'gender': str(gender),
+                        'description': description_text_list
+                    }
                 }
+        elif output_content == OutputContent.SIMILAR_NAMES:
+            xpath = "//li[contains(@class, 'Listing-name')]//a[contains(@href, '/babyname/')]/@href"
+            similar_name_links = response.xpath(xpath).getall()
+            similar_names = [x.split('/')[-1] for x in similar_name_links]
+            yield_result = {
+                'name': name,
+                'similar_names': similar_names
             }
+            if gender:
+                yield_result['gender'] = str(gender)
+            yield yield_result
+        else:
+            raise ValueError('Unexpected output content')
 
     @staticmethod
     def get_local_file_name(name, gender=None):

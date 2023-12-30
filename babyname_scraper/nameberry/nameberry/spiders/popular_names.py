@@ -1,8 +1,10 @@
 from pathlib import Path
 
+import logging
 import scrapy
 import os
 from enum import Enum
+import json
 
 
 class Gender(Enum):
@@ -23,13 +25,28 @@ class OutputContent(Enum):
     SIMILAR_NAMES = 2
 
 
-output_content = OutputContent.NAME_MEANING
+output_content = OutputContent.SIMILAR_NAMES
+PARSE_LOCAL_ONLY = True
 
 
-class QuotesSpider(scrapy.Spider):
+class NameBerrySpider(scrapy.Spider):
     name = "popular_names"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+        top_names_file = '{}/top_names_2013_to_2022.json'.format(cur_dir)
+        with open(top_names_file, 'r') as fp:
+            top_names = json.load(fp)
+
+        self._top_names = []
+        for name_dict in top_names:
+            self._top_names.append(name_dict['name'].lower())
+        self._top_names_set = set(self._top_names)
+
     def start_requests(self):
+        """
         urls = [
             # the index page is rendered by Javascript, which is not supported by Scrapy
             'file:///Users/santan/Downloads/Most Popular Baby Names 2022 _ Nameberry.html',
@@ -38,76 +55,85 @@ class QuotesSpider(scrapy.Spider):
         ]
         for url in urls:
             yield scrapy.Request(url=url, callback=self.parse_popular_names)
-
-    def parse_popular_names(self, response):
+        """
+        # for each name, yield a URL
         count = 0
-        for link_obj in response.xpath("//ul/li/a/@href"):
-            link = link_obj.get()
-            if link.startswith('https://nameberry.com/babyname/'):
-                url = link
-            elif link.startswith('/babyname/'):
-                url = 'https://nameberry.com' + link
+        for name in self._top_names:
+            crawled = NameBerrySpider.is_name_crawled(name)
+            if crawled:
+                url = 'file://{}'.format(NameBerrySpider.get_local_file_name(name))
+                logging.info('Name {} has been crawled before; use local file: {}'.format(name, url))
+                self.crawler.stats.inc_value('user/local_file_hit')
+                yield scrapy.Request(url, self.parse_name_page)
             else:
-                continue
+                url = 'https://babynames.com/name/{}'.format(name.lower())
+                logging.info('crawl {} with url: {}'.format(name, url))
+                self.crawler.stats.inc_value('user/remote_url_load')
+                if not PARSE_LOCAL_ONLY:
+                    yield scrapy.Request(url, self.parse_name_page)
 
             count += 1
-            if QuotesSpider.is_name_crawled(url):
-                name = QuotesSpider.get_name_from_url(url)
-                link = 'file://' + QuotesSpider.get_local_file_name(name)
-
-                print('Downloaded; Parse {}'.format(link))
-                yield scrapy.Request(link, self.parse_name_page)
-            else:
-                print('Crawl & Parse {}'.format(link))
-                yield scrapy.Request(link, self.parse_name_page)
-
-            # test
-            # if count > 5:
-            #    break
-
-        print('Total Links: {}'.format(count))
+            # if count >= 10:
+            #  break
 
     def parse_name_page(self, response):
-        proto, name, gender = QuotesSpider.parse_url(response.url)
+        proto, name, gender = NameBerrySpider.parse_url(response.url)
 
         # Save to file if it is just downloaded
         if proto == UrlProtocol.HTTPS:
-            filename = QuotesSpider.get_local_file_name(name, gender)
+            self.crawler.stats.inc_value('user/https_success')
+            filename = NameBerrySpider.get_local_file_name(name, gender)
             Path(filename).write_bytes(response.body)
-
-        print('Parsing for {} with url of {}'.format(name, response.url))
 
         # if the name can be used by both boys and girls, the page is an anchor page;
         # we need to load the gender specific page
         val = "{} Continued".format(name.capitalize())
         if len(response.xpath("//a[contains(., $val)]/@href", val=val)) > 0:
-            link = QuotesSpider.get_url(name, Gender.GIRL)
-            print('Crawl & Parse {}'.format(link))
-            yield scrapy.Request(link, self.parse_name_page)
+            if NameBerrySpider.is_name_crawled(name, Gender.GIRL):
+                link = 'file://{}'.format(NameBerrySpider.get_local_file_name(name, Gender.GIRL))
+                logging.info('cached for name {} and gender {}'.format(name, Gender.GIRL))
+                yield scrapy.Request(link, self.parse_name_page)
+            else:
+                link = NameBerrySpider.get_url(name, Gender.GIRL)
+                logging.info('Crawl remote for name {} and gender {}'.format(name, Gender.GIRL))
+                if not PARSE_LOCAL_ONLY:
+                    yield scrapy.Request(link, self.parse_name_page)
 
-            link = QuotesSpider.get_url(name, Gender.BOY)
-            print('Crawl & Parse {}'.format(link))
-            yield scrapy.Request(link, self.parse_name_page)
-
-            return
+            if NameBerrySpider.is_name_crawled(name, Gender.BOY):
+                link = 'file://{}'.format(NameBerrySpider.get_local_file_name(name, Gender.BOY))
+                logging.info('cached for name {} and gender {}'.format(name, Gender.BOY))
+                yield scrapy.Request(link, self.parse_name_page)
+            else:
+                link = NameBerrySpider.get_url(name, Gender.BOY)
+                logging.info('Crawl remote for name {} and gender {}'.format(name, Gender.BOY))
+                if not PARSE_LOCAL_ONLY:
+                    yield scrapy.Request(link, self.parse_name_page)
 
         # parse text
         if output_content == OutputContent.NAME_MEANING:
-            description_text_list = response.xpath("//div[@class = 't-copy']//text()").getall()
-            if len(description_text_list) > 0:
+            description_text_str = response.xpath("string(//div[@class = 't-copy'])").get()
+            if description_text_str:
                 yield {
                     name: {
-                        'gender': str(gender),
-                        'description': description_text_list
+                        'gender': str(gender) if gender else '',
+                        'description': description_text_str
                     }
                 }
         elif output_content == OutputContent.SIMILAR_NAMES:
             xpath = "//li[contains(@class, 'Listing-name')]//a[contains(@href, '/babyname/')]/@href"
             similar_name_links = response.xpath(xpath).getall()
             similar_names = [x.split('/')[-1] for x in similar_name_links]
+
+            filtered_similar_names = []
+            for sname in similar_names:
+                if sname in self._top_names_set:
+                    filtered_similar_names.append(sname)
+            if not filtered_similar_names:
+                return
+
             yield_result = {
                 'name': name,
-                'similar_names': similar_names
+                'similar_names': filtered_similar_names
             }
             if gender:
                 yield_result['gender'] = str(gender)
@@ -117,6 +143,7 @@ class QuotesSpider(scrapy.Spider):
 
     @staticmethod
     def get_local_file_name(name, gender=None):
+        name = name.lower()
         directory = '/Users/santan/Downloads/nameberry/'
         if gender:
             return '{}{}-{}.html'.format(directory, name, gender)
@@ -124,28 +151,33 @@ class QuotesSpider(scrapy.Spider):
             return '{}{}.html'.format(directory, name)
 
     @staticmethod
+    def is_name_crawled(name, gender=None):
+        filename = NameBerrySpider.get_local_file_name(name, gender=gender)
+        return os.path.isfile(filename)
+
+    @staticmethod
     def get_url(name, gender=None):
+        name = name.capitalize()
         if gender:
             return 'https://nameberry.com/babyname/{}/{}'.format(name, str(gender))
         else:
             return 'https://nameberry.com/babyname/{}'.format(name)
 
     @staticmethod
-    def is_name_crawled(url):
-        _, name, gender = QuotesSpider.parse_url(url)
-        filename = QuotesSpider.get_local_file_name(name, gender)
-        return os.path.isfile(filename)
+    def is_url_crawled(url):
+        _, name, gender = NameBerrySpider.parse_url(url)
+        return NameBerrySpider.is_name_crawled(name, gender)
 
     @staticmethod
     def get_name_from_url(url):
-        _, name, _ = QuotesSpider.parse_url(url)
+        _, name, _ = NameBerrySpider.parse_url(url)
         return name
 
     @staticmethod
     def parse_url(url):
         '''
         possible URLs
-            1. with gender: https://nameberry.com/babyname/william/boy
+            1. with gender: https://nameberry.com/babyname/William/boy
             2. without gender: https://nameberry.com/babyname
             3. local file with gender: file:///Users/santan/Downloads/nameberry/liam-girl.html
             4. local file without gender: file:///Users/santan/Downloads/nameberry/liam.html
@@ -187,5 +219,30 @@ class QuotesSpider(scrapy.Spider):
 
         return protocol, name, gender
 
+    def parse_popular_names(self, response):
+        count = 0
+        for link_obj in response.xpath("//ul/li/a/@href"):
+            link = link_obj.get()
+            if link.startswith('https://nameberry.com/babyname/'):
+                url = link
+            elif link.startswith('/babyname/'):
+                url = 'https://nameberry.com' + link
+            else:
+                continue
 
+            count += 1
+            if NameBerrySpider.is_url_crawled(url):
+                name = NameBerrySpider.get_name_from_url(url)
+                link = 'file://' + NameBerrySpider.get_local_file_name(name)
 
+                print('Downloaded; Parse {}'.format(link))
+                yield scrapy.Request(link, self.parse_name_page)
+            else:
+                print('Crawl & Parse {}'.format(link))
+                yield scrapy.Request(link, self.parse_name_page)
+
+            # test
+            # if count > 5:
+            #    break
+
+        logging.info('Total Links: {}'.format(count))

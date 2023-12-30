@@ -1,4 +1,4 @@
-# Scrapy settings for nameberry project
+# Scrapy settings for behindthename project
 #
 # For simplicity, this file contains only settings considered important or
 # commonly used. You can find more settings consulting the documentation:
@@ -7,26 +7,25 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = "nameberry"
+BOT_NAME = "behindthename"
 
-SPIDER_MODULES = ["nameberry.spiders"]
-NEWSPIDER_MODULE = "nameberry.spiders"
+SPIDER_MODULES = ["behindthename.spiders"]
+NEWSPIDER_MODULE = "behindthename.spiders"
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = "nameberry (+http://www.yourdomain.com)"
+#USER_AGENT = "behindthename (+http://www.yourdomain.com)"
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-CONCURRENT_REQUESTS = 16  # change to 1 if scraping
+#CONCURRENT_REQUESTS = 32
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-# DOWNLOAD_DELAY = 1
-
+#DOWNLOAD_DELAY = 3
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -46,13 +45,13 @@ CONCURRENT_REQUESTS = 16  # change to 1 if scraping
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 #SPIDER_MIDDLEWARES = {
-#    "nameberry.middlewares.NameberrySpiderMiddleware": 543,
+#    "behindthename.middlewares.BehindthenameSpiderMiddleware": 543,
 #}
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #DOWNLOADER_MIDDLEWARES = {
-#    "nameberry.middlewares.NameberryDownloaderMiddleware": 543,
+#    "behindthename.middlewares.BehindthenameDownloaderMiddleware": 543,
 #}
 
 # Enable or disable extensions
@@ -64,7 +63,7 @@ CONCURRENT_REQUESTS = 16  # change to 1 if scraping
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 #ITEM_PIPELINES = {
-#    "nameberry.pipelines.NameberryPipeline": 300,
+#    "behindthename.pipelines.BehindthenamePipeline": 300,
 #}
 
 # Enable and configure the AutoThrottle extension (disabled by default)

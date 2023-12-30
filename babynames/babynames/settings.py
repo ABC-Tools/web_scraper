@@ -1,4 +1,4 @@
-# Scrapy settings for nameberry project
+# Scrapy settings for babynames project
 #
 # For simplicity, this file contains only settings considered important or
 # commonly used. You can find more settings consulting the documentation:
@@ -7,28 +7,27 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-BOT_NAME = "nameberry"
+BOT_NAME = "babynames"
 
-SPIDER_MODULES = ["nameberry.spiders"]
-NEWSPIDER_MODULE = "nameberry.spiders"
+SPIDER_MODULES = ["babynames.spiders"]
+NEWSPIDER_MODULE = "babynames.spiders"
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = "nameberry (+http://www.yourdomain.com)"
+#USER_AGENT = "babynames (+http://www.yourdomain.com)"
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = True
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-CONCURRENT_REQUESTS = 16  # change to 1 if scraping
+#CONCURRENT_REQUESTS = 32
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-# DOWNLOAD_DELAY = 1
-
+#DOWNLOAD_DELAY = 3
 # The download delay setting will honor only one of:
-#CONCURRENT_REQUESTS_PER_DOMAIN = 16
+CONCURRENT_REQUESTS_PER_DOMAIN = 1
 #CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
@@ -46,14 +45,27 @@ CONCURRENT_REQUESTS = 16  # change to 1 if scraping
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 #SPIDER_MIDDLEWARES = {
-#    "nameberry.middlewares.NameberrySpiderMiddleware": 543,
+#    "babynames.middlewares.BabynamesSpiderMiddleware": 543,
 #}
+SPIDER_MIDDLEWARES = {
+    'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
+}
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    "nameberry.middlewares.NameberryDownloaderMiddleware": 543,
-#}
+# DOWNLOADER_MIDDLEWARES = {
+#    "babynames.middlewares.BabynamesDownloaderMiddleware": 543,
+# }
+SPLASH_URL = 'http://127.0.0.1:8050'
+DOWNLOADER_MIDDLEWARES = {
+    'scrapy_splash.SplashCookiesMiddleware': 723,
+    'scrapy_splash.SplashMiddleware': 725,
+    'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
+}
+DUPEFILTER_CLASS = 'scrapyjs.SplashAwareDupeFilter'
+HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
+
+DOWNLOAD_TIMEOUT = 10
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
@@ -64,7 +76,7 @@ CONCURRENT_REQUESTS = 16  # change to 1 if scraping
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 #ITEM_PIPELINES = {
-#    "nameberry.pipelines.NameberryPipeline": 300,
+#    "babynames.pipelines.BabynamesPipeline": 300,
 #}
 
 # Enable and configure the AutoThrottle extension (disabled by default)

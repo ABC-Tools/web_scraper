@@ -25,7 +25,7 @@ class OutputContent(Enum):
     SIMILAR_NAMES = 2
 
 
-output_content = OutputContent.SIMILAR_NAMES
+output_content = OutputContent.NAME_MEANING
 PARSE_LOCAL_ONLY = True
 
 
@@ -78,6 +78,7 @@ class NameBerrySpider(scrapy.Spider):
 
     def parse_name_page(self, response):
         proto, name, gender = NameBerrySpider.parse_url(response.url)
+        logging.info('user: {url}, {name}, {gender}'.format(url=response.url, name=name, gender=gender))
 
         # Save to file if it is just downloaded
         if proto == UrlProtocol.HTTPS:
@@ -178,7 +179,7 @@ class NameBerrySpider(scrapy.Spider):
         '''
         possible URLs
             1. with gender: https://nameberry.com/babyname/William/boy
-            2. without gender: https://nameberry.com/babyname
+            2. without gender: https://nameberry.com/babyname/William
             3. local file with gender: file:///Users/santan/Downloads/nameberry/liam-girl.html
             4. local file without gender: file:///Users/santan/Downloads/nameberry/liam.html
         :param url:
@@ -197,25 +198,28 @@ class NameBerrySpider(scrapy.Spider):
         # initialize gender
         gender = None
 
-        # remove gender segment if there one
-        last_seg = segments[-1]
-        if 'boy' in last_seg:
-            gender = Gender.BOY
-            segments.pop()
-        elif 'girl' in last_seg:
-            gender = Gender.GIRL
-            segments.pop()
+        if protocol == UrlProtocol.HTTPS:
+            # remove gender segment if there one
+            last_seg = segments[-1]
+            if 'boy' in last_seg:
+                gender = Gender.BOY
+                segments.pop()
+            elif 'girl' in last_seg:
+                gender = Gender.GIRL
+                segments.pop()
 
-        # remove
-        name = segments[-1]
-        if name.endswith('.html'):
-            name = name[0:-5]
-        if name.endswith('-boy)'):
-            name = name[0:-4]
-            gender = Gender.BOY
-        elif name.endswith('-girl)'):
-            name = name[0:-5]
-            gender = Gender.GIRL
+            name = segments[-1]
+        else:
+            name = segments[-1]
+            if name.endswith('.html'):
+                name = name[0:-5]
+
+            if name.endswith('-boy'):
+                name = name[0:-4]
+                gender = Gender.BOY
+            elif name.endswith('-girl'):
+                name = name[0:-5]
+                gender = Gender.GIRL
 
         return protocol, name, gender
 

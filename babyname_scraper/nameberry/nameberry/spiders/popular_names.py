@@ -25,7 +25,7 @@ class OutputContent(Enum):
     SIMILAR_NAMES = 2
 
 
-output_content = OutputContent.NAME_MEANING
+output_content = OutputContent.SIMILAR_NAMES
 PARSE_LOCAL_ONLY = True
 
 

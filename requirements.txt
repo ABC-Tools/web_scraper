@@ -2,3 +2,6 @@
 scrapy
 scrapy-splash
 scrapyjs
+
+recipe-scrapers
+Pillow
